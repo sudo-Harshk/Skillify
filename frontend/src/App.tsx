@@ -210,7 +210,7 @@ export default function Component() {
       if (selectedSubject) {
         setLoading(true);
         try {
-          const response = await axios.get(`https://skillify-backend.vercel.app/subjects/${selectedSubject}/chapters`);
+          const response = await axios.get(`http://localhost:5000/subjects/${selectedSubject}/chapters`);
           setChapters(response.data);
         } catch (error) {
           console.error('Error fetching chapters:', error);
@@ -250,7 +250,7 @@ export default function Component() {
       setQuestions([]);
       setLoading(true);
       try {
-        const response = await axios.post('https://skillify-backend.vercel.app/questions/generate', {
+        const response = await axios.post('http://localhost:5000/questions/generate', {
           subject: selectedSubject,
           chapter: selectedChapter,
         });

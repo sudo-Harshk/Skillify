@@ -9,7 +9,6 @@ fastify.register(helmet);
 fastify.register(cors, {
     origin: (origin, callback) => {
         const allowedOrigins = [
-            'https://sudo-harshk.github.io',
             'http://localhost:3000',
             'http://192.168.0.105:3000' 
         ];

@@ -1,4 +1,3 @@
-// data/subjects.js
 module.exports = {
     Math: [
         "Sets, Relations, and Functions",
