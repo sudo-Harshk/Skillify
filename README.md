@@ -6,8 +6,6 @@ This repository contains two main folders:
 - `backend/` - Fastify-based API that generates questions via Gemini (stateless) and evaluates answers.
 - `frontend/` - Static React app (build included under `frontend/build`).
 
----
-
 ## Quick start (Windows PowerShell)
 
 1. Backend
@@ -31,8 +29,6 @@ npm start
 
 Or serve the included `frontend/build` folder with your static host.
 
----
-
 ## Environment
 
 Create a `.env` file in `backend/` (do not commit it). Required keys:
@@ -41,12 +37,6 @@ Create a `.env` file in `backend/` (do not commit it). Required keys:
 # Gemini API key (recommended)
 GEMINI_API_KEY=YOUR_GEMINI_API_KEY_HERE
 ```
-
-Notes:
-- The project was refactored to a stateless flow: the backend returns question objects that include `correctAnswers`. The frontend must keep the original question objects while the user completes the quiz and send them back to `/questions/evaluate` along with user answers.
-- Do not commit your `.env` file. `.gitignore` already ignores `.env`.
-
----
 
 ## API Endpoints (backend)
 
@@ -79,8 +69,6 @@ Response (200):
 { "evaluation": [ { "question": "...", "correctAnswers": ["b"], "userAnswer": "b", "isCorrect": true, "explanation": "..." }, ... ] }
 ```
 
----
-
 ## Tests
 
 Backend unit tests are written with Jest.
@@ -90,8 +78,6 @@ cd backend
 npm test
 ```
 
----
-
 ## Design notes & recommendations
 
 - Stateless flow: The server does not persist generated questions by default. The frontend must keep the original questions (including answers) and send them back during evaluation. This guarantees unique questions per request and simplifies the backend.
@@ -99,8 +85,6 @@ npm test
 - If you need tamper-proof evaluation without a DB, consider issuing a signed token (HMAC) with the questions payload when generating. The frontend sends the token back with answers; server verifies token signature before evaluating.
 
 - The code tries to use the Gemini SDK (`@google/genai` or `@google/generative-ai`) if present. If the SDK shape does not match your installed version, adapt `backend/routes/questions.js` or tell me which SDK version you prefer and I can lock it down.
-
----
 
 ## Troubleshooting
 
@@ -112,18 +96,3 @@ npm test
 
 - Forgot to set `GEMINI_API_KEY`:
   - The `/questions/generate` route will fail. Add your key to `backend/.env` or set it in your environment.
-
----
-
-## Cleaning up the repo
-
-- `.gitignore` is present at the root to ignore `node_modules`, `.env`, `.db` files, and OS/editor artifacts.
-
----
-
-If you want, I can:
-- Add an HMAC-signed token flow so the server can trust frontend-submitted questions without a DB.
-- Reintroduce a persistent DB approach (SQLite) and migrations and wire `generate` to persist an instance ID.
-- Adjust the Gemini SDK usage to a specific package/version and make the code strict to that API.
-
-Which of these would you like next?
