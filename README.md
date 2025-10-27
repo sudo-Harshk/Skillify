@@ -1,25 +1,25 @@
 # Skillify
 
-Lightweight quiz backend + frontend for generating and evaluating multiple-choice questions using an LLM.
+Skillify is a lightweight quiz generation and evaluation platform powered by a Large Language Model (LLM).  
+It provides a Fastify-based backend for generating and evaluating multiple-choice questions and a React-based frontend for user interaction.
 
-This repository contains two main folders:
-- `backend/` - Fastify-based API that generates questions via Gemini (stateless) and evaluates answers.
-- `frontend/` - Static React app (build included under `frontend/build`).
+## Quick Start (Windows PowerShell)
 
-## Quick start (Windows PowerShell)
-
-1. Backend
+### 1. Run the Backend
 
 ```powershell
 cd backend
 npm install
 npm start
-```
+````
 
-- The backend listens on port `5000` by default (see `backend/api/index.js`).
-- If you run into native build issues for optional native modules (e.g. `better-sqlite3`), see Troubleshooting below.
+The backend runs on **[http://localhost:5000](http://localhost:5000)** by default (see `backend/api/index.js`).
 
-2. Frontend (development)
+If you encounter native build issues (for example, with `better-sqlite3`), refer to the [Troubleshooting](#troubleshooting) section.
+
+---
+
+### 2. Run the Frontend (Development Mode)
 
 ```powershell
 cd frontend
@@ -27,49 +27,94 @@ npm install
 npm start
 ```
 
-Or serve the included `frontend/build` folder with your static host.
+Alternatively, you can serve the prebuilt static app from the `frontend/build` directory.
 
-## Environment
+---
 
-Create a `.env` file in `backend/` (do not commit it). Required keys:
+## Environment Configuration
+
+Create a `.env` file in the `backend/` directory (do not commit this file):
 
 ```env
-# Gemini API key (recommended)
 GEMINI_API_KEY=YOUR_GEMINI_API_KEY_HERE
 ```
 
-## API Endpoints (backend)
+The application uses Gemini for question generation.
+Obtain your API key from [Google AI Studio](https://aistudio.google.com/).
 
-Base URL: http://localhost:5000
+---
 
-1) POST /questions/generate
+## API Endpoints
 
-Request body:
-```json
-{ "subject": "Physics", "chapter": "Kinematics" }
-```
+**Base URL:** `http://localhost:5000`
 
-Response (201):
-```json
-{ "questions": [ { "question": "...", "options": [{"label":"a","option":"..."},...], "correctAnswers": ["b"], "explanation":"..." }, ... ] }
-```
+### 1. Generate Questions
 
-2) POST /questions/evaluate
+**POST** `/questions/generate`
 
-Request body (frontend must supply the original questions):
+**Request Body**
+
 ```json
 {
-  "originalQuestions": [ /* questions from /generate */ ],
+  "subject": "Physics",
+  "chapter": "Kinematics"
+}
+```
+
+**Response (201)**
+
+```json
+{
+  "questions": [
+    {
+      "question": "What is the SI unit of acceleration?",
+      "options": [
+        { "label": "a", "option": "m/s" },
+        { "label": "b", "option": "m/s²" },
+        { "label": "c", "option": "m/s³" },
+        { "label": "d", "option": "N" }
+      ],
+      "correctAnswers": ["b"],
+      "explanation": "Acceleration is measured in meters per second squared (m/s²)."
+    }
+  ]
+}
+```
+
+---
+
+### 2. Evaluate Answers
+
+**POST** `/questions/evaluate`
+
+**Request Body**
+
+```json
+{
+  "originalQuestions": "questions returned from /generate",
   "userAnswers": { "1": "b", "2": "a" }
 }
 ```
 
-Response (200):
+**Response (200)**
+
 ```json
-{ "evaluation": [ { "question": "...", "correctAnswers": ["b"], "userAnswer": "b", "isCorrect": true, "explanation": "..." }, ... ] }
+{
+  "evaluation": [
+    {
+      "question": "What is the SI unit of acceleration?",
+      "correctAnswers": ["b"],
+      "userAnswer": "b",
+      "isCorrect": true,
+      "explanation": "Acceleration is measured in meters per second squared."
+    }
+  ]
+}
 ```
 
-## Tests
+---
+
+## Running Tests
 
 Backend unit tests are written with Jest.
 
@@ -78,21 +123,15 @@ cd backend
 npm test
 ```
 
-## Design notes & recommendations
+---
 
-- Stateless flow: The server does not persist generated questions by default. The frontend must keep the original questions (including answers) and send them back during evaluation. This guarantees unique questions per request and simplifies the backend.
+## Design Notes
 
-- If you need tamper-proof evaluation without a DB, consider issuing a signed token (HMAC) with the questions payload when generating. The frontend sends the token back with answers; server verifies token signature before evaluating.
+* **Stateless Architecture:**
+  The backend does not persist data. The frontend is responsible for storing the generated questions and sending them back for evaluation. This ensures unique questions per request and simplifies the backend.
 
-- The code tries to use the Gemini SDK (`@google/genai` or `@google/generative-ai`) if present. If the SDK shape does not match your installed version, adapt `backend/routes/questions.js` or tell me which SDK version you prefer and I can lock it down.
+* **Tamper-Proof Option:**
+  To prevent data tampering, consider signing the generated question payload using an HMAC token. The frontend can return this token along with answers, allowing the backend to verify integrity.
 
-## Troubleshooting
-
-- better-sqlite3 install errors (native build):
-  - On Windows you may need the Visual Studio C++ Build Tools. Alternatively, keep `better-sqlite3` as optional (the project provides an in-memory fallback or has been refactored to stateless) or use Docker where binaries are available.
-
-- Model returned invalid JSON:
-  - The prompt asks for a strict JSON object. If the model returns stray text, the backend will throw. Improve the prompt or add retries.
-
-- Forgot to set `GEMINI_API_KEY`:
-  - The `/questions/generate` route will fail. Add your key to `backend/.env` or set it in your environment.
+* **Gemini SDK Compatibility:**
+  The backend supports both `@google/genai` and `@google/generative-ai`. If your SDK version differs, update `backend/routes/questions.js` accordingly.
