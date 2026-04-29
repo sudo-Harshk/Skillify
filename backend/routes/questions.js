@@ -76,7 +76,7 @@ const generateUniqueQuestions = async (prompt) => {
     if (!jsonText && result?.output?.[0]?.content) jsonText = result.output[0].content;
     if (!jsonText) throw new Error('No JSON returned from model');
 
-    const parsed = JSON.parse(jsonText);
+    const parsed = parseJsonFromText(jsonText);
     const questions = Array.isArray(parsed) ? parsed : (parsed.questions || []);
     return questions;
   } catch (err) {
@@ -104,7 +104,7 @@ const generateUniqueQuestions = async (prompt) => {
           if (!jsonText && result?.output?.[0]?.content) jsonText = result.output[0].content;
           if (!jsonText) throw new Error('No JSON returned from model');
 
-          const parsed = JSON.parse(jsonText);
+          const parsed = parseJsonFromText(jsonText);
           const questions = Array.isArray(parsed) ? parsed : (parsed.questions || []);
           return questions;
         } catch (retryErr) {
@@ -129,7 +129,11 @@ function evaluateAnswers(originalQuestions, userAnswers) {
   if (!Array.isArray(originalQuestions)) throw new Error('originalQuestions must be an array');
   return originalQuestions.map((question, index) => {
     const userAnswer = userAnswers?.[(index + 1).toString()];
-    const isCorrect = question.correctAnswers && question.correctAnswers.includes(userAnswer);
+    const normalizedUserAnswer = typeof userAnswer === 'string' ? userAnswer.toLowerCase() : userAnswer;
+    const normalizedCorrectAnswers = Array.isArray(question.correctAnswers)
+      ? question.correctAnswers.map((answer) => (typeof answer === 'string' ? answer.toLowerCase() : answer))
+      : [];
+    const isCorrect = normalizedCorrectAnswers.includes(normalizedUserAnswer);
     return {
       question: question.question,
       correctAnswers: question.correctAnswers,
@@ -140,9 +144,32 @@ function evaluateAnswers(originalQuestions, userAnswers) {
   });
 }
 
+function parseJsonFromText(text) {
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    const trimmed = String(text || '').trim();
+    const firstBrace = trimmed.indexOf('{');
+    const firstBracket = trimmed.indexOf('[');
+    const start = [firstBrace, firstBracket].filter((idx) => idx >= 0).sort((a, b) => a - b)[0];
+    if (start === undefined) throw err;
+
+    const lastBrace = trimmed.lastIndexOf('}');
+    const lastBracket = trimmed.lastIndexOf(']');
+    const end = Math.max(lastBrace, lastBracket);
+    if (end <= start) throw err;
+
+    const candidate = trimmed.slice(start, end + 1);
+    return JSON.parse(candidate);
+  }
+}
+
 async function routes(fastify, options) {
   fastify.post('/questions/generate', async (request, reply) => {
     const { subject, chapter } = request.body || {};
+    if (!subject || !chapter) {
+      return reply.status(400).send({ message: 'Missing subject or chapter in request.' });
+    }
     const prompt = `Generate multiple-choice questions for the chapter \"${chapter}\" in ${subject}.\\n\\nYour response MUST be a single, valid JSON object. Do not include any other text or markdown.\\n\\nThe JSON object should have a single key \"questions\", which is an array of 10 question objects. Each question object must have these keys: \\\"question\\\" (string), \\\"options\\\" (array of objects with \\\"label\\\" and \\\"option\\\"), \\\"correctAnswers\\\" (array of strings), and \\\"explanation\\\" (string).`;
 
     try {

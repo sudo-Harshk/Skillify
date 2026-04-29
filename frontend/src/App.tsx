@@ -18,6 +18,10 @@ type Question = {
   selectedAnswer?: string | null;
 };
 
+const api = axios.create({
+  baseURL: process.env.REACT_APP_API_BASE_URL || '',
+});
+
 // ProgressBar component
 type ProgressBarProps = {
   progress: number;
@@ -76,13 +80,14 @@ function QuestionDisplay({
       return;
     }
 
-    setSelectedAnswer(label);
+    const normalizedLabel = label.toLowerCase();
+    setSelectedAnswer(normalizedLabel);
 
     const updatedQuestions = [...questions];
-    updatedQuestions[currentQuestionIndex].selectedAnswer = label;
+    updatedQuestions[currentQuestionIndex].selectedAnswer = normalizedLabel;
     setQuestions(updatedQuestions);
 
-    if (currentQuestion.correctAnswers.includes(label)) {
+    if (currentQuestion.correctAnswers.includes(normalizedLabel)) {
       setCorrectCount(correctCount + 1);
     } else {
       setWrongCount(wrongCount + 1);
@@ -125,8 +130,8 @@ function QuestionDisplay({
                 ref={(el) => (buttonRefs.current[index] = el)}
                 onClick={() => handleAnswerSelect(option.label, index)}
                 className={`w-full px-4 py-3 rounded-md transition-colors text-left ${
-                  selectedAnswer === option.label
-                    ? currentQuestion.correctAnswers.includes(option.label)
+                  selectedAnswer === option.label.toLowerCase()
+                    ? currentQuestion.correctAnswers.includes(option.label.toLowerCase())
                       ? 'bg-green-500 text-white'
                       : 'bg-red-500 text-white'
                     : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
@@ -210,7 +215,7 @@ export default function Component() {
       if (selectedSubject) {
         setLoading(true);
         try {
-          const response = await axios.get(`http://localhost:5000/subjects/${selectedSubject}/chapters`);
+          const response = await api.get(`/subjects/${selectedSubject}/chapters`);
           setChapters(response.data);
         } catch (error) {
           console.error('Error fetching chapters:', error);
@@ -250,7 +255,7 @@ export default function Component() {
       setQuestions([]);
       setLoading(true);
       try {
-        const response = await axios.post('http://localhost:5000/questions/generate', {
+        const response = await api.post('/questions/generate', {
           subject: selectedSubject,
           chapter: selectedChapter,
         });
@@ -266,7 +271,9 @@ export default function Component() {
         const formattedQuestions = questionsArray.map((question: any) => ({
           question: question.question.replace(/^\*?\d+[:.]?\s*/, '').replace(/Question:\s*/, '').replace(/\*\*/g, ''),
           options: question.options,
-          correctAnswers: question.correctAnswers,
+          correctAnswers: Array.isArray(question.correctAnswers)
+            ? question.correctAnswers.map((answer: string) => answer.toLowerCase())
+            : [],
           explanation: question.explanation.replace(/\*\*/g, '').replace(/^Explanation:\s*/, ''),
         }));
 

@@ -6,17 +6,24 @@ const questionsRoutes = require('../routes/questions');
 
 fastify.register(helmet);
 
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
 fastify.register(cors, {
     origin: (origin, callback) => {
-        const allowedOrigins = [
-            'http://localhost:3000',
-            'http://192.168.0.105:3000' 
-        ];
-        if (!origin || allowedOrigins.includes(origin)) {
+        if (!origin) {
             callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
+            return;
         }
+
+        if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+            callback(null, true);
+            return;
+        }
+
+        callback(new Error('Not allowed by CORS'));
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],

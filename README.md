@@ -37,10 +37,15 @@ Create a `.env` file in the `backend/` directory (do not commit this file):
 
 ```env
 GEMINI_API_KEY=YOUR_GEMINI_API_KEY_HERE
+# Optional: comma-separated list of allowed CORS origins
+ALLOWED_ORIGINS=http://localhost:3000,https://your-frontend.example.com
 ```
 
 The application uses Gemini for question generation.
 Obtain your API key from [Google AI Studio](https://aistudio.google.com/).
+
+Frontend API base (optional):
+- Set `REACT_APP_API_BASE_URL` in your frontend environment to point at the backend (e.g. `https://skillify-backend.vercel.app`). If not set, the app uses relative URLs for local dev with the CRA proxy.
 
 ---
 

@@ -2,8 +2,17 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import App from './App';
 
-test('renders learn react link', () => {
+jest.mock('axios', () => ({
+  __esModule: true,
+  default: {
+    create: jest.fn(() => ({
+      get: jest.fn(),
+      post: jest.fn(),
+    })),
+  },
+}));
+
+test('renders app header', () => {
   render(<App />);
-  const linkElement = screen.getByText(/learn react/i);
-  expect(linkElement).toBeInTheDocument();
+  expect(screen.getByText(/Skillify/i)).toBeInTheDocument();
 });
