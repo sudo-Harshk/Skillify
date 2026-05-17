@@ -32,37 +32,40 @@ It covers the three core subjects for Indian competitive exams:
 
 ### Architecture
 
-```
-User Browser
-    |
-    | (1) Select subject + chapter
-    v
-React Frontend  ----POST /questions/generate---->  Fastify Backend
-(TypeScript)                                        (Node.js)
-    |                                                   |
-    | (5) Render questions + start 7-min timer          | (2) Validate subject/chapter
-    |                                                   |     against canonical server list
-    |                                                   | (3) Send prompt to Gemini API
-    |                                                   |
-    |                                                   v
-    |                                           Google Gemini 2.5 Flash
-    |                                                   |
-    |                                                   | (4) JSON response: 10 MCQs
-    |                                                   |     + options + explanations
-    |
-    | (6) User selects answers -> local state
-    |
-    | (7) Finish quiz (manual or timer expiry)
-    |
-    v
-React Frontend  ----POST /questions/evaluate---->  Fastify Backend
-    |                                                   |
-    | (9) Display Final Report                          | (8) Compare user answers
-    |     - score, per-question breakdown               |     to correct answers
-    |     - correct answer + explanation                |     return evaluation array
-    |     - MathJax-rendered math
-    v
-Done
+```mermaid
+sequenceDiagram
+    actor User
+    participant FE as React Frontend
+    participant BE as Fastify Backend
+    participant GM as Google Gemini 2.5 Flash
+
+    User->>FE: (1) Select subject + chapter
+    User->>FE: (2) Click Proceed
+
+    FE->>BE: (3) POST /questions/generate
+    BE->>BE: (4) Validate subject & chapter<br/>against canonical server list
+    BE->>GM: (5) Send structured prompt
+    GM-->>BE: (6) JSON - 10 MCQs + options + explanations
+    BE-->>FE: (7) 201 - questions array
+
+    FE->>FE: (8) Render questions<br/>Start 7-min countdown timer
+
+    loop For each question
+        User->>FE: (9) Select answer option
+        FE->>FE: (10) Update local state<br/>Show green / red feedback
+    end
+
+    alt Timer expires
+        FE->>FE: Auto-finish quiz
+    else User clicks Finish Quiz
+        FE->>FE: Manual finish
+    end
+
+    FE->>BE: (11) POST /questions/evaluate
+    BE->>BE: (12) Compare answers<br/>Validate keys (1-N) & values (a-d)
+    BE-->>FE: (13) 200 - evaluation array
+
+    FE->>User: (14) Final Report<br/>Score + per-question breakdown<br/>+ MathJax-rendered explanations
 ```
 
 ### Key Design Choices
