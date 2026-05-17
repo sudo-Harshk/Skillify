@@ -1,3 +1,20 @@
+# Dependencies
 node_modules/
+
+# Environment variables (use .env.example as the template)
 .env
+.env.*
+!.env.example
+
+# Test coverage
+coverage/
+
+# Scratch / dev notes
 *.txt
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

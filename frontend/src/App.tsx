@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useReducer, useEffect, useRef } from 'react';
 import { ChevronLeft, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import axios from 'axios';
 import FlipClockCountdown from '@leenguyen/react-flip-clock-countdown';
@@ -47,9 +47,7 @@ function ProgressBar({ progress }: ProgressBarProps) {
 // QuestionDisplay component
 type QuestionDisplayProps = {
   questions: Question[];
-  setQuestions: (questions: Question[]) => void;
-  setCorrectCount: (count: number) => void;
-  setWrongCount: (count: number) => void;
+  onAnswer: (questions: Question[], correct: boolean) => void;
   correctCount: number;
   wrongCount: number;
   setShowTimer: (show: boolean) => void;
@@ -58,9 +56,7 @@ type QuestionDisplayProps = {
 
 function QuestionDisplay({
   questions,
-  setQuestions,
-  setCorrectCount,
-  setWrongCount,
+  onAnswer,
   correctCount,
   wrongCount,
   setShowTimer,
@@ -85,18 +81,14 @@ function QuestionDisplay({
 
     const updatedQuestions = [...questions];
     updatedQuestions[currentQuestionIndex].selectedAnswer = normalizedLabel;
-    setQuestions(updatedQuestions);
 
-    if (currentQuestion.correctAnswers.includes(normalizedLabel)) {
-      setCorrectCount(correctCount + 1);
-    } else {
-      setWrongCount(wrongCount + 1);
-      if (buttonRefs.current[index]) {
-        buttonRefs.current[index]?.classList.add('shake');
-        setTimeout(() => {
-          buttonRefs.current[index]?.classList.remove('shake');
-        }, 400);
-      }
+    const isCorrect = currentQuestion.correctAnswers.includes(normalizedLabel);
+    onAnswer(updatedQuestions, isCorrect);
+    if (!isCorrect && buttonRefs.current[index]) {
+      buttonRefs.current[index]?.classList.add('shake');
+      setTimeout(() => {
+        buttonRefs.current[index]?.classList.remove('shake');
+      }, 400);
     }
   };
 
@@ -196,32 +188,121 @@ function ChapterSelector({ subject, chapters, onSelect }: { subject: string, cha
   );
 }
 
+// Reducer types and logic
+type AppState = {
+  selectedSubject: string | null;
+  selectedChapter: string | null;
+  chapters: string[];
+  questions: Question[];
+  loading: boolean;
+  showTimer: boolean;
+  timerKey: number;
+  correctCount: number;
+  wrongCount: number;
+  timerStart: number | null;
+  quizFinished: boolean;
+  errorMessage: string | null;
+};
+
+type AppAction =
+  | { type: 'SELECT_SUBJECT'; subject: string }
+  | { type: 'SELECT_CHAPTER'; chapter: string }
+  | { type: 'SET_CHAPTERS'; chapters: string[] }
+  | { type: 'SET_QUESTIONS'; questions: Question[]; timerStart: number }
+  | { type: 'SET_LOADING'; loading: boolean }
+  | { type: 'ANSWER_QUESTION'; questions: Question[]; correct: boolean }
+  | { type: 'FINISH_QUIZ' }
+  | { type: 'RESET' }
+  | { type: 'SET_ERROR'; message: string | null }
+  | { type: 'BACK' };
+
+const initialState: AppState = {
+  selectedSubject: null,
+  selectedChapter: null,
+  chapters: [],
+  questions: [],
+  loading: false,
+  showTimer: false,
+  timerKey: 0,
+  correctCount: 0,
+  wrongCount: 0,
+  timerStart: null,
+  quizFinished: false,
+  errorMessage: null,
+};
+
+function appReducer(state: AppState, action: AppAction): AppState {
+  switch (action.type) {
+    case 'SELECT_SUBJECT':
+      return { ...initialState, selectedSubject: action.subject };
+    case 'SELECT_CHAPTER':
+      return {
+        ...state,
+        selectedChapter: action.chapter,
+        questions: [],
+        showTimer: false,
+        correctCount: 0,
+        wrongCount: 0,
+        timerStart: null,
+        quizFinished: false,
+        errorMessage: null,
+      };
+    case 'SET_CHAPTERS':
+      return { ...state, chapters: action.chapters, loading: false };
+    case 'SET_QUESTIONS':
+      return {
+        ...state,
+        questions: action.questions,
+        showTimer: true,
+        timerStart: action.timerStart,
+        timerKey: state.timerKey + 1,
+        loading: false,
+        errorMessage: null,
+      };
+    case 'SET_LOADING':
+      return { ...state, loading: action.loading };
+    case 'ANSWER_QUESTION':
+      return {
+        ...state,
+        questions: action.questions,
+        correctCount: action.correct ? state.correctCount + 1 : state.correctCount,
+        wrongCount: action.correct ? state.wrongCount : state.wrongCount + 1,
+      };
+    case 'FINISH_QUIZ':
+      return { ...state, quizFinished: true, showTimer: false };
+    case 'RESET':
+      return { ...initialState };
+    case 'SET_ERROR':
+      return { ...state, errorMessage: action.message, loading: false };
+    case 'BACK':
+      if (state.selectedChapter) {
+        return { ...state, selectedChapter: null, showTimer: false, timerStart: null, quizFinished: false };
+      }
+      return { ...initialState };
+    default:
+      return state;
+  }
+}
+
 // Main Component
 export default function Component() {
-  const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
-  const [selectedChapter, setSelectedChapter] = useState<string | null>(null);
-  const [chapters, setChapters] = useState<string[]>([]);
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [showTimer, setShowTimer] = useState(false);
-  const [timerKey, setTimerKey] = useState(0);
-  const [correctCount, setCorrectCount] = useState<number>(0);
-  const [wrongCount, setWrongCount] = useState<number>(0);
-  const [timerStart, setTimerStart] = useState<number | null>(null);
-  const [quizFinished, setQuizFinished] = useState<boolean>(false);
+  const [state, dispatch] = useReducer(appReducer, initialState);
+  const {
+    selectedSubject, selectedChapter, chapters, questions,
+    loading, showTimer, timerKey, correctCount, wrongCount,
+    timerStart, quizFinished, errorMessage,
+  } = state;
 
   useEffect(() => {
     const fetchChapters = async () => {
       if (selectedSubject) {
-        setLoading(true);
+        dispatch({ type: 'SET_LOADING', loading: true });
         try {
           const response = await api.get(`/subjects/${selectedSubject}/chapters`);
-          setChapters(response.data);
+          dispatch({ type: 'SET_CHAPTERS', chapters: response.data });
         } catch (error) {
           console.error('Error fetching chapters:', error);
-          alert('There was an error fetching chapters. Please try again later.');
-        } finally {
-          setLoading(false);
+          dispatch({ type: 'SET_ERROR', message: 'Could not load chapters. Check your connection and try again.' });
         }
       }
     };
@@ -229,31 +310,16 @@ export default function Component() {
   }, [selectedSubject]);
 
   const handleSubjectSelect = (subject: string) => {
-    setSelectedSubject(subject);
-    setSelectedChapter(null);
-    setChapters([]);
-    setQuestions([]);
-    setShowTimer(false);
-    setCorrectCount(0);
-    setWrongCount(0);
-    setTimerStart(null);
-    setQuizFinished(false);
+    dispatch({ type: 'SELECT_SUBJECT', subject });
   };
 
   const handleChapterSelect = (chapter: string) => {
-    setSelectedChapter(chapter);
-    setQuestions([]);
-    setShowTimer(false);
-    setCorrectCount(0);
-    setWrongCount(0);
-    setTimerStart(null);
-    setQuizFinished(false);
+    dispatch({ type: 'SELECT_CHAPTER', chapter });
   };
 
   const handleGenerateQuestions = async () => {
     if (selectedSubject && selectedChapter) {
-      setQuestions([]);
-      setLoading(true);
+      dispatch({ type: 'SET_LOADING', loading: true });
       try {
         const response = await api.post('/questions/generate', {
           subject: selectedSubject,
@@ -263,8 +329,7 @@ export default function Component() {
         const questionsArray = response.data.questions;
 
         if (!questionsArray || questionsArray.length === 0) {
-          alert('Unable to generate questions at this time. Please try again.');
-          setShowTimer(false);
+          dispatch({ type: 'SET_ERROR', message: 'Unable to generate questions at this time. Please try again.' });
           return;
         }
 
@@ -277,47 +342,23 @@ export default function Component() {
           explanation: question.explanation.replace(/\*\*/g, '').replace(/^Explanation:\s*/, ''),
         }));
 
-        setQuestions(formattedQuestions);
-        setShowTimer(true);
-        if (!timerStart) {
-          setTimerStart(Date.now());
-          setTimerKey((prevKey) => prevKey + 1);
-        }
+        dispatch({ type: 'SET_QUESTIONS', questions: formattedQuestions, timerStart: Date.now() });
       } catch (error) {
-        alert('There was an error generating questions. Please try again later.');
-        setShowTimer(false);
-      } finally {
-        setLoading(false);
+        dispatch({ type: 'SET_ERROR', message: 'Could not reach the server. Check your connection and try again.' });
       }
     }
   };
 
   const handleBack = () => {
-    if (selectedChapter) {
-      setSelectedChapter(null);
-    } else if (selectedSubject) {
-      setSelectedSubject(null);
-    }
-    setShowTimer(false);
-    setTimerStart(null);
-    setQuizFinished(false);
+    dispatch({ type: 'BACK' });
   };
 
   const handleRetry = () => {
-    setSelectedSubject(null);
-    setSelectedChapter(null);
-    setChapters([]);
-    setQuestions([]);
-    setShowTimer(false);
-    setCorrectCount(0);
-    setWrongCount(0);
-    setTimerStart(null);
-    setQuizFinished(false);
+    dispatch({ type: 'RESET' });
   };
 
   const handleFinishQuiz = () => {
-    setQuizFinished(true);
-    setShowTimer(false);
+    dispatch({ type: 'FINISH_QUIZ' });
   };
 
   useEffect(() => {
@@ -359,6 +400,18 @@ export default function Component() {
                   duration={0.5}
                   style={{ margin: '0 auto', transform: 'scale(1.2)' }}
                 />
+              </div>
+            )}
+            {errorMessage && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start justify-between">
+                <p className="text-red-700 text-sm">{errorMessage}</p>
+                <button
+                  onClick={() => dispatch({ type: 'SET_ERROR', message: null })}
+                  className="ml-2 text-red-400 hover:text-red-600 text-sm font-bold shrink-0"
+                  aria-label="Dismiss error"
+                >
+                  ✕
+                </button>
               </div>
             )}
             {loading ? (
@@ -412,10 +465,10 @@ export default function Component() {
                     <h2 className="text-lg font-semibold mb-2">Selected Chapter: {selectedChapter}</h2>
                     <div className="flex justify-center gap-4 mt-4">
                       <button
-                        onClick={() => setSelectedChapter(null)}
+                        onClick={() => dispatch({ type: 'BACK' })}
                         className="bg-red-100 text-red-800 px-4 py-2 rounded-md hover:bg-red-200 transition-colors"
                       >
-                        Reselect 
+                        Reselect
                       </button>
                       <button
                         onClick={handleGenerateQuestions}
@@ -429,13 +482,11 @@ export default function Component() {
                 {questions.length > 0 && !quizFinished && (
                   <QuestionDisplay
                     questions={questions}
-                    setQuestions={setQuestions}
-                    setCorrectCount={setCorrectCount}
-                    setWrongCount={setWrongCount}
+                    onAnswer={(qs, correct) => dispatch({ type: 'ANSWER_QUESTION', questions: qs, correct })}
                     correctCount={correctCount}
                     wrongCount={wrongCount}
-                    setShowTimer={setShowTimer}
-                    handleFinishQuiz={handleFinishQuiz}
+                    setShowTimer={(show) => !show && dispatch({ type: 'FINISH_QUIZ' })}
+                    handleFinishQuiz={() => dispatch({ type: 'FINISH_QUIZ' })}
                   />
                 )}
                 {quizFinished && (
@@ -539,7 +590,7 @@ export default function Component() {
             )}
            <DesignedBy />
           </div>
-        </div>  
+        </div>
       </div>
     </MathJaxContext>
   );

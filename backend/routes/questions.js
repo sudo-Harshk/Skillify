@@ -1,5 +1,6 @@
 const dotenv = require('dotenv');
 dotenv.config();
+const SUBJECTS = require('../data/subjects.js');
 
 // Initialize Gemini SDK (try @google/genai then @google/generative-ai)
 let genAI = null;
@@ -125,6 +126,9 @@ const generateUniqueQuestions = async (prompt) => {
   }
 };
 
+// userAnswers is a 1-indexed object: { "1": "b", "2": "a", ... }
+// Keys are 1-based string integers matching question position.
+// Values are single lowercase letters corresponding to option labels.
 function evaluateAnswers(originalQuestions, userAnswers) {
   if (!Array.isArray(originalQuestions)) throw new Error('originalQuestions must be an array');
   return originalQuestions.map((question, index) => {
@@ -165,12 +169,29 @@ function parseJsonFromText(text) {
 }
 
 async function routes(fastify, options) {
-  fastify.post('/questions/generate', async (request, reply) => {
+  fastify.post('/questions/generate', {
+    config: { rateLimit: { max: parseInt(process.env.RATE_LIMIT_RPM || '20', 10), timeWindow: '1 minute' } }
+  }, async (request, reply) => {
     const { subject, chapter } = request.body || {};
     if (!subject || !chapter) {
       return reply.status(400).send({ message: 'Missing subject or chapter in request.' });
     }
-    const prompt = `Generate multiple-choice questions for the chapter \"${chapter}\" in ${subject}.\\n\\nYour response MUST be a single, valid JSON object. Do not include any other text or markdown.\\n\\nThe JSON object should have a single key \"questions\", which is an array of 10 question objects. Each question object must have these keys: \\\"question\\\" (string), \\\"options\\\" (array of objects with \\\"label\\\" and \\\"option\\\"), \\\"correctAnswers\\\" (array of strings), and \\\"explanation\\\" (string).`;
+
+    // Validate against canonical subject/chapter list and use server-side canonical names
+    const canonicalSubject = Object.keys(SUBJECTS).find(
+      (s) => s.toLowerCase() === subject.toLowerCase()
+    );
+    if (!canonicalSubject) {
+      return reply.status(400).send({ message: `Unknown subject: ${subject}` });
+    }
+    const canonicalChapter = SUBJECTS[canonicalSubject].find(
+      (c) => c.toLowerCase() === chapter.toLowerCase()
+    );
+    if (!canonicalChapter) {
+      return reply.status(400).send({ message: `Unknown chapter "${chapter}" for subject "${canonicalSubject}"` });
+    }
+
+    const prompt = `Generate multiple-choice questions for the chapter \"${canonicalChapter}\" in ${canonicalSubject}.\\n\\nYour response MUST be a single, valid JSON object. Do not include any other text or markdown.\\n\\nThe JSON object should have a single key \"questions\", which is an array of 10 question objects. Each question object must have these keys: \\\"question\\\" (string), \\\"options\\\" (array of objects with \\\"label\\\" and \\\"option\\\"), \\\"correctAnswers\\\" (array of strings), and \\\"explanation\\\" (string).`;
 
     try {
       const questions = await generateUniqueQuestions(prompt);
@@ -184,10 +205,24 @@ async function routes(fastify, options) {
     }
   });
 
-  fastify.post('/questions/evaluate', async (request, reply) => {
+  fastify.post('/questions/evaluate', {
+    config: { rateLimit: { max: parseInt(process.env.RATE_LIMIT_RPM || '20', 10), timeWindow: '1 minute' } }
+  }, async (request, reply) => {
     const { userAnswers, originalQuestions } = request.body || {};
     if (!userAnswers || !originalQuestions || !Array.isArray(originalQuestions)) {
       return reply.status(400).send({ message: 'Missing userAnswers or originalQuestions in request.' });
+    }
+
+    // Validate userAnswers shape: keys must be "1" to N, values must be lowercase letters a-d or empty
+    const n = originalQuestions.length;
+    for (const [key, val] of Object.entries(userAnswers)) {
+      const idx = parseInt(key, 10);
+      if (isNaN(idx) || idx < 1 || idx > n || String(idx) !== key) {
+        return reply.status(400).send({ message: `Invalid answer key "${key}". Keys must be string integers from "1" to "${n}".` });
+      }
+      if (typeof val !== 'string' || !/^[a-d]$/.test(val.toLowerCase())) {
+        return reply.status(400).send({ message: `Invalid answer value "${val}" for key "${key}". Values must be a single letter a–d.` });
+      }
     }
 
     try {

@@ -1,6 +1,19 @@
+require('dotenv').config();
+
+// Fail fast on missing required environment variables
+const missingEnvVars = [];
+if (!process.env.GEMINI_API_KEY) missingEnvVars.push('GEMINI_API_KEY');
+if (!process.env.ALLOWED_ORIGINS) missingEnvVars.push('ALLOWED_ORIGINS');
+if (missingEnvVars.length > 0) {
+  console.error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
+  console.error('See backend/.env.example for setup instructions.');
+  process.exit(1);
+}
+
 const fastify = require('fastify')({ logger: true });
 const helmet = require('@fastify/helmet');
 const cors = require('@fastify/cors');
+const rateLimit = require('@fastify/rate-limit');
 const subjectsRoutes = require('../routes/subjects');
 const questionsRoutes = require('../routes/questions');
 
@@ -18,7 +31,7 @@ fastify.register(cors, {
             return;
         }
 
-        if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+        if (allowedOrigins.includes(origin)) {
             callback(null, true);
             return;
         }
@@ -28,6 +41,17 @@ fastify.register(cors, {
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
+});
+
+fastify.register(rateLimit, {
+  global: false, // we apply per-route below
+  max: parseInt(process.env.RATE_LIMIT_RPM || '20', 10),
+  timeWindow: '1 minute',
+  errorResponseBuilder: () => ({
+    statusCode: 429,
+    error: 'Too Many Requests',
+    message: 'You have exceeded the request limit. Please wait before trying again.'
+  })
 });
 
 fastify.register(subjectsRoutes);
