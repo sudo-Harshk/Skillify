@@ -1,11 +1,8 @@
 require('dotenv').config();
 
-// Fail fast on missing required environment variables
-const missingEnvVars = [];
-if (!process.env.GEMINI_API_KEY) missingEnvVars.push('GEMINI_API_KEY');
-if (!process.env.ALLOWED_ORIGINS) missingEnvVars.push('ALLOWED_ORIGINS');
-if (missingEnvVars.length > 0) {
-  console.error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
+// Fail fast if the Gemini API key is missing
+if (!process.env.GEMINI_API_KEY) {
+  console.error('Missing required environment variable: GEMINI_API_KEY');
   console.error('See backend/.env.example for setup instructions.');
   process.exit(1);
 }
@@ -19,32 +16,15 @@ const questionsRoutes = require('../routes/questions');
 
 fastify.register(helmet);
 
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean);
-
 fastify.register(cors, {
-    origin: (origin, callback) => {
-        if (!origin) {
-            callback(null, true);
-            return;
-        }
-
-        if (allowedOrigins.includes(origin)) {
-            callback(null, true);
-            return;
-        }
-
-        callback(new Error('Not allowed by CORS'));
-    },
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true
+  origin: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 });
 
 fastify.register(rateLimit, {
-  global: false, // we apply per-route below
+  global: false,
   max: parseInt(process.env.RATE_LIMIT_RPM || '20', 10),
   timeWindow: '1 minute',
   errorResponseBuilder: () => ({
@@ -71,8 +51,7 @@ fastify.get('/', async (request, reply) => {
 
 const start = async () => {
     try {
-        await fastify.listen({ port: 5000, host: '0.0.0.0' });
-        fastify.log.info(`Server listening on http://localhost:5000`);
+        await fastify.listen({ port: parseInt(process.env.PORT || '5000', 10), host: '0.0.0.0' });
     } catch (err) {
         fastify.log.error(err);
         process.exit(1);
