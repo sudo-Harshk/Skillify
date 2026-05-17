@@ -4,9 +4,9 @@
 
 **AI-powered MCQ quiz platform for JEE & EAMCET exam preparation**
 
-[Try it live ->](https://sudo-Harshk.github.io/skillify-frontend/)
+[Try it live ->](https://skillify-web-beige.vercel.app/)
 
-[![Live Demo](https://img.shields.io/badge/Live_Demo-Online-brightgreen?style=for-the-badge&logo=render)](https://sudo-Harshk.github.io/skillify-frontend/)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Online-brightgreen?style=for-the-badge&logo=vercel)](https://skillify-web-beige.vercel.app/)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-blue?style=for-the-badge&logo=node.js)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/UI-React_18-61DAFB?style=for-the-badge&logo=react)](https://react.dev/)
 [![Gemini](https://img.shields.io/badge/LLM-Google_Gemini-4285F4?style=for-the-badge&logo=google)](https://aistudio.google.com/)
@@ -35,8 +35,8 @@ It covers the three core subjects for Indian competitive exams:
 ```mermaid
 sequenceDiagram
     actor User
-    participant FE as React Frontend
-    participant BE as Fastify Backend
+    participant FE as React Frontend<br/>(Vercel)
+    participant BE as Fastify Backend<br/>(Render)
     participant GM as Google Gemini 2.5 Flash
 
     User->>FE: (1) Select subject + chapter
@@ -83,9 +83,12 @@ sequenceDiagram
 
 ## Live Demo
 
-**[https://sudo-Harshk.github.io/skillify-frontend/](https://sudo-Harshk.github.io/skillify-frontend/)**
+| Service | URL |
+|---|---|
+| Frontend | [https://skillify-web-beige.vercel.app](https://skillify-web-beige.vercel.app/) |
+| Backend API | [https://skillify-api.onrender.com](https://skillify-api.onrender.com/) |
 
-> The frontend is deployed on GitHub Pages. The backend must be running separately for question generation to work.
+> Render's free tier spins down after inactivity. The first request may take 30-60 seconds to wake the server.
 
 ---
 
@@ -99,8 +102,8 @@ sequenceDiagram
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/sudo-Harshk/skillify-frontend.git
-cd skillify-frontend
+git clone https://github.com/sudo-Harshk/Skillify.git
+cd Skillify
 ```
 
 ### 2. Install dependencies
@@ -120,11 +123,11 @@ cd frontend && npm install
 ```env
 # Required
 GEMINI_API_KEY=your_gemini_api_key_here
-ALLOWED_ORIGINS=http://localhost:3000
 
 # Optional
 GEMINI_MODEL=gemini-2.5-flash
 RATE_LIMIT_RPM=20
+PORT=5000
 ```
 
 **Frontend** - create `frontend/.env` (copy from `frontend/.env.example`):
@@ -163,7 +166,7 @@ To start over, click the refresh icon in the top-right corner of the header.
 
 ## API Reference
 
-**Base URL:** `http://localhost:5000`
+**Base URL:** `https://skillify-api.onrender.com`
 
 ### GET `/subjects`
 
@@ -291,12 +294,13 @@ skillify/
 | Icons | Lucide React | Back, check, X, refresh icons |
 | Backend framework | Fastify 5 | High-performance Node.js HTTP server |
 | Security headers | @fastify/helmet | Sets CSP, X-Frame-Options, etc. |
-| CORS | @fastify/cors | Configurable origin allowlist |
+| CORS | @fastify/cors | Open CORS for demo deployment |
 | Rate limiting | @fastify/rate-limit | Per-IP request throttling |
 | LLM | Google Gemini 2.5 Flash | Question generation via `@google/genai` |
 | Testing (backend) | Jest | Unit + route tests, 82% line coverage |
 | Testing (frontend) | React Testing Library + Jest | Component + interaction tests, 86% App.tsx coverage |
-| Deployment (frontend) | GitHub Pages | Static build via `gh-pages` |
+| Frontend deployment | Vercel | Automatic builds from GitHub |
+| Backend deployment | Render | Node.js server, free tier |
 
 ---
 
@@ -340,6 +344,6 @@ Copyright (c) 2026 [sudo-Harshk](https://github.com/sudo-Harshk)
 
 <div align="center">
 
-Built by [sudo-Harshk](https://github.com/sudo-Harshk) · [Live Demo](https://sudo-Harshk.github.io/skillify-frontend/) · [MIT License](LICENSE)
+Built by [sudo-Harshk](https://github.com/sudo-Harshk) · [Live Demo](https://skillify-web-beige.vercel.app/) · [MIT License](LICENSE)
 
 </div>
